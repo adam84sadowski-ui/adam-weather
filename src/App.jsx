@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
 
-const API_KEY      = import.meta.env.VITE_OWM_API_KEY;
-const WEATHER_URL  = "https://api.openweathermap.org/data/2.5/weather";
-const FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
-const GEO_URL      = "https://api.openweathermap.org/geo/1.0/direct";
-const MARINE_URL   = "https://marine-api.open-meteo.com/v1/marine";
-const LAKE_URL     = "https://api.open-meteo.com/v1/forecast";
+const API_KEY          = import.meta.env.VITE_OWM_API_KEY;
+const WEATHER_URL      = "https://api.openweathermap.org/data/2.5/weather";
+const FORECAST_URL     = "https://api.openweathermap.org/data/2.5/forecast";
+const GEO_URL          = "https://api.openweathermap.org/geo/1.0/direct";
+const REVERSE_GEO_URL  = "https://api.openweathermap.org/geo/1.0/reverse";
+const MARINE_URL       = "https://marine-api.open-meteo.com/v1/marine";
+const LAKE_URL         = "https://api.open-meteo.com/v1/forecast";
 
 const DEFAULT_CITY = { name: "Gdańsk", country: "PL", state: "", lat: 54.3520, lon: 18.6466 };
 
@@ -228,6 +229,15 @@ async function geocode(query) {
   return res.json();
 }
 
+async function reverseGeocode(lat, lon) {
+  const res = await fetch(`${REVERSE_GEO_URL}?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.length) return null;
+  const r = data[0];
+  return { name: r.name, country: r.country, state: r.state ?? "", lat: r.lat, lon: r.lon };
+}
+
 function iconUrl(code) {
   return `https://openweathermap.org/img/wn/${code}@2x.png`;
 }
@@ -254,6 +264,7 @@ export default function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [geoLoading, setGeoLoading]   = useState(false);
   const [geoError, setGeoError]       = useState("");
+  const [locating, setLocating]       = useState(false);
 
   const [weather, setWeather]         = useState(null);
   const [waterInfo, setWaterInfo]     = useState(undefined);
@@ -263,6 +274,28 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const inputRef = useRef(null);
+
+  const useMyLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    setGeoError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const result = await reverseGeocode(lat, lon);
+        setCity(result ?? { name: "My Location", country: "", state: "", lat, lon });
+        setLocating(false);
+      },
+      () => {
+        setGeoError("Location access denied.");
+        setLocating(false);
+      },
+      { timeout: 10000 }
+    );
+  }, []);
+
+  // Auto-locate on first load
+  useEffect(() => { useMyLocation(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -358,6 +391,15 @@ export default function App() {
             value={query}
             onChange={e => { setQuery(e.target.value); setSuggestions([]); setGeoError(""); }}
           />
+          <button
+            className="search-btn loc-btn"
+            type="button"
+            onClick={useMyLocation}
+            disabled={locating}
+            title="Use my location"
+          >
+            {locating ? <span className="spinner-sm" /> : "📍"}
+          </button>
           <button className="search-btn" type="submit" disabled={geoLoading}>
             {geoLoading ? <span className="spinner-sm" /> : "→"}
           </button>

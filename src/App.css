@@ -326,6 +326,7 @@
 
 .search-btn:hover { background: rgba(255,255,255,0.22); }
 .search-btn:disabled { opacity: 0.4; cursor: default; }
+.loc-btn { font-size: 16px; }
 
 .spinner-sm {
   width: 14px;
