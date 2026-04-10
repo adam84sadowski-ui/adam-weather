@@ -206,6 +206,39 @@
   font-size: 14px;
 }
 
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab-btn.active {
+  background: rgba(255,255,255,0.18);
+  color: #f1f5f9;
+}
+
+.tab-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.75);
+}
+
 /* 24-hour forecast grid */
 .forecast-section {
   margin-bottom: 16px;
@@ -279,6 +312,57 @@
   font-size: 11px;
   color: #7dd3fc;
   text-align: right;
+}
+
+/* 14-day row overrides */
+.daily-row {
+  grid-template-columns: 36px 46px 1fr 60px 52px;
+}
+
+.forecast-day-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+}
+
+.forecast-date {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
+}
+
+.forecast-range {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  align-items: baseline;
+}
+
+.temp-max {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.temp-min {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.4);
+}
+
+.no-data {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  padding: 20px 0;
+}
+
+/* 72h row - existing but ensure day column shows */
+.forecast-day {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
 }
 
 /* Search */

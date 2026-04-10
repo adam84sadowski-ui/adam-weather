@@ -8,6 +8,7 @@ const GEO_URL          = "https://api.openweathermap.org/geo/1.0/direct";
 const REVERSE_GEO_URL  = "https://api.openweathermap.org/geo/1.0/reverse";
 const MARINE_URL       = "https://marine-api.open-meteo.com/v1/marine";
 const LAKE_URL         = "https://api.open-meteo.com/v1/forecast";
+const DAILY_URL        = "https://api.open-meteo.com/v1/forecast";
 
 const DEFAULT_CITY = { name: "Gdańsk", country: "PL", state: "", lat: 54.3520, lon: 18.6466 };
 
@@ -202,6 +203,53 @@ function owmEmoji(id, icon) {
   return "🌡️";
 }
 
+// Open-Meteo daily forecast — 14 days, no API key needed
+const WMO_EMOJI = {
+  0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
+  45: "🌫️", 48: "🌫️",
+  51: "🌦️", 53: "🌦️", 55: "🌧️",
+  61: "🌦️", 63: "🌧️", 65: "🌧️",
+  71: "❄️", 73: "❄️", 75: "❄️", 77: "❄️",
+  80: "🌦️", 81: "🌧️", 82: "🌧️",
+  85: "❄️", 86: "❄️",
+  95: "⛈️", 96: "⛈️", 99: "⛈️",
+};
+const WMO_DESC = {
+  0: "clear sky", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
+  45: "fog", 48: "icy fog",
+  51: "light drizzle", 53: "drizzle", 55: "heavy drizzle",
+  61: "light rain", 63: "rain", 65: "heavy rain",
+  71: "light snow", 73: "snow", 75: "heavy snow", 77: "snow grains",
+  80: "light showers", 81: "showers", 82: "heavy showers",
+  85: "snow showers", 86: "heavy snow showers",
+  95: "thunderstorm", 96: "thunderstorm w/ hail", 99: "thunderstorm w/ heavy hail",
+};
+
+async function fetchDailyForecast(lat, lon) {
+  try {
+    const params = new URLSearchParams({
+      latitude: lat, longitude: lon,
+      daily: "weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max",
+      forecast_days: 14,
+      timezone: "auto",
+    });
+    const res = await fetch(`${DAILY_URL}?${params}`);
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d.daily?.time?.length) return null;
+    return d.daily.time.map((date, i) => ({
+      date:   new Date(date + "T12:00:00"),
+      code:   d.daily.weathercode[i],
+      emoji:  WMO_EMOJI[d.daily.weathercode[i]] ?? "🌡️",
+      desc:   WMO_DESC[d.daily.weathercode[i]]  ?? "unknown",
+      max:    Math.round(d.daily.temperature_2m_max[i]),
+      min:    Math.round(d.daily.temperature_2m_min[i]),
+      precip: d.daily.precipitation_probability_max[i] ?? 0,
+      wind:   Math.round(d.daily.windspeed_10m_max[i]),
+    }));
+  } catch { return null; }
+}
+
 // OWM /data/2.5/forecast gives 3-hourly slots, up to 40 entries (5 days)
 async function fetchHourlyForecast(lat, lon) {
   try {
@@ -266,9 +314,12 @@ export default function App() {
   const [geoError, setGeoError]       = useState("");
   const [locating, setLocating]       = useState(false);
 
+  const [tab, setTab]                 = useState("now");
+
   const [weather, setWeather]         = useState(null);
   const [waterInfo, setWaterInfo]     = useState(undefined);
   const [forecast, setForecast]       = useState(null);
+  const [daily, setDaily]             = useState(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -303,15 +354,17 @@ export default function App() {
     setWaterInfo(undefined);
     const { lat, lon } = city;
     try {
-      const [weatherRes, water, hours] = await Promise.all([
+      const [weatherRes, water, hours, days] = await Promise.all([
         fetch(`${WEATHER_URL}?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`),
         fetchWaterInfo(lat, lon),
         fetchHourlyForecast(lat, lon),
+        fetchDailyForecast(lat, lon),
       ]);
       if (!weatherRes.ok) throw new Error(`Weather API error ${weatherRes.status}`);
       setWeather(await weatherRes.json());
       setWaterInfo(water ?? null);
       setForecast(hours);
+      setDaily(days);
       setLastUpdated(new Date());
     } catch (err) {
       setError(err.message);
@@ -435,7 +488,7 @@ export default function App() {
           >↻</button>
         </div>
 
-        {/* Main temp */}
+        {/* Main temp — always visible */}
         <div className="hero">
           <img className="weather-icon" src={iconUrl(condition.icon)} alt={condition.description} />
           <div className="temp-block">
@@ -443,83 +496,124 @@ export default function App() {
             <span className="unit">C</span>
           </div>
         </div>
-
         <p className="description">{condition.description}</p>
         <p className="feels-like">Feels like {Math.round(main.feels_like)}°C</p>
 
-        {/* Stats */}
-        <div className="stats">
-          <div className="stat">
-            <span className="stat-label">Humidity</span>
-            <span className="stat-value">{main.humidity}%</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Wind</span>
-            <span className="stat-value">
-              {Math.round(wind.speed * 3.6)} km/h{" "}
-              {wind.deg !== undefined && <WindDirection deg={wind.deg} />}
-            </span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Pressure</span>
-            <span className="stat-value">{main.pressure} hPa</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Cloud cover</span>
-            <span className="stat-value">{clouds.all}%</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Visibility</span>
-            <span className="stat-value">{(visibility / 1000).toFixed(1)} km</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Sunrise / Set</span>
-            <span className="stat-value">
-              {formatTime(new Date(sys.sunrise * 1000))} / {formatTime(new Date(sys.sunset * 1000))}
-            </span>
-          </div>
+        {/* Tab bar */}
+        <div className="tab-bar">
+          <button className={`tab-btn ${tab === "now"    ? "active" : ""}`} onClick={() => setTab("now")}>Now</button>
+          <button className={`tab-btn ${tab === "72h"    ? "active" : ""}`} onClick={() => setTab("72h")}>72h</button>
+          <button className={`tab-btn ${tab === "14days" ? "active" : ""}`} onClick={() => setTab("14days")}>14 days</button>
         </div>
 
-        {/* Water */}
-        {waterInfo === undefined && (
-          <div className="water-section water-loading">
-            <span className="spinner-sm" />
-            <span className="water-label">Looking for nearby water…</span>
-          </div>
-        )}
-        {waterInfo !== null && waterInfo !== undefined && (
-          <div className={`water-section ${waterInfo.type}`}>
-            <div className="water-icon">{waterIcon}</div>
-            <div className="water-info">
-              <span className="water-label">{waterLabel}</span>
-              {waterInfo.temp !== null
-                ? <span className="water-temp">{Math.round(waterInfo.temp)}°C</span>
-                : <span className="water-temp no-temp">temp unavailable</span>
-              }
+        {/* Tab: Now */}
+        {tab === "now" && (
+          <>
+            <div className="stats">
+              <div className="stat">
+                <span className="stat-label">Humidity</span>
+                <span className="stat-value">{main.humidity}%</span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Wind</span>
+                <span className="stat-value">
+                  {Math.round(wind.speed * 3.6)} km/h{" "}
+                  {wind.deg !== undefined && <WindDirection deg={wind.deg} />}
+                </span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Pressure</span>
+                <span className="stat-value">{main.pressure} hPa</span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Cloud cover</span>
+                <span className="stat-value">{clouds.all}%</span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Visibility</span>
+                <span className="stat-value">{(visibility / 1000).toFixed(1)} km</span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Sunrise / Set</span>
+                <span className="stat-value">
+                  {formatTime(new Date(sys.sunrise * 1000))} / {formatTime(new Date(sys.sunset * 1000))}
+                </span>
+              </div>
             </div>
+
+            {waterInfo === undefined && (
+              <div className="water-section water-loading">
+                <span className="spinner-sm" />
+                <span className="water-label">Looking for nearby water…</span>
+              </div>
+            )}
+            {waterInfo !== null && waterInfo !== undefined && (
+              <div className={`water-section ${waterInfo.type}`}>
+                <div className="water-icon">{waterIcon}</div>
+                <div className="water-info">
+                  <span className="water-label">{waterLabel}</span>
+                  {waterInfo.temp !== null
+                    ? <span className="water-temp">{Math.round(waterInfo.temp)}°C</span>
+                    : <span className="water-temp no-temp">temp unavailable</span>
+                  }
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Tab: 72h */}
+        {tab === "72h" && (
+          <div className="forecast-section">
+            {forecast && forecast.length > 0 ? (
+              <div className="forecast-grid">
+                {forecast.map((h, i) => (
+                  <div key={i} className={`forecast-row ${i === 0 ? "now" : ""}`}>
+                    <span className="forecast-hour">
+                      {i === 0 ? "Now" : h.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="forecast-day">
+                      {h.time.toLocaleDateString("en-GB", { weekday: "short" })}
+                    </span>
+                    <span className="forecast-emoji">{h.emoji}</span>
+                    <span className="forecast-desc">{h.desc}</span>
+                    <span className="forecast-temp">{h.temp}°C</span>
+                    <span className="forecast-precip">{h.precip > 0 ? `💧${h.precip}%` : ""}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="no-data">Forecast unavailable</p>
+            )}
           </div>
         )}
 
-        {/* Hourly forecast — 3-hour slots from OWM */}
-        {forecast && forecast.length > 0 && (
+        {/* Tab: 14 days */}
+        {tab === "14days" && (
           <div className="forecast-section">
-            <p className="forecast-title">3-hourly forecast</p>
-            <div className="forecast-grid">
-              {forecast.map((h, i) => (
-                <div key={i} className={`forecast-row ${i === 0 ? "now" : ""}`}>
-                  <span className="forecast-hour">
-                    {i === 0 ? "Now" : h.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                  <span className="forecast-day">
-                    {h.time.toLocaleDateString("en-GB", { weekday: "short" })}
-                  </span>
-                  <span className="forecast-emoji">{h.emoji}</span>
-                  <span className="forecast-desc">{h.desc}</span>
-                  <span className="forecast-temp">{h.temp}°C</span>
-                  <span className="forecast-precip">{h.precip > 0 ? `💧${h.precip}%` : ""}</span>
-                </div>
-              ))}
-            </div>
+            {daily && daily.length > 0 ? (
+              <div className="forecast-grid">
+                {daily.map((d, i) => (
+                  <div key={i} className={`forecast-row daily-row ${i === 0 ? "now" : ""}`}>
+                    <span className="forecast-day-label">
+                      {i === 0 ? "Today" : d.date.toLocaleDateString("en-GB", { weekday: "short" })}
+                    </span>
+                    <span className="forecast-date">
+                      {d.date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </span>
+                    <span className="forecast-emoji">{d.emoji}</span>
+                    <span className="forecast-desc">{d.desc}</span>
+                    <span className="forecast-range">
+                      <span className="temp-max">{d.max}°</span>
+                      <span className="temp-min">{d.min}°</span>
+                    </span>
+                    <span className="forecast-precip">{d.precip > 0 ? `💧${d.precip}%` : ""}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="no-data">Forecast unavailable</p>
+            )}
           </div>
         )}
 
