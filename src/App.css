@@ -1,0 +1,464 @@
+.screen {
+  min-height: 100svh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 24px;
+  transition: background 1s ease;
+}
+
+.day {
+  background: linear-gradient(160deg, #1e3a5f 0%, #2d6a9f 60%, #4a9cd4 100%);
+}
+
+.night {
+  background: linear-gradient(160deg, #0b0c1a 0%, #1a1d3a 60%, #252850 100%);
+}
+
+.error-screen,
+.loading-screen {
+  background: #0f172a;
+  flex-direction: column;
+  gap: 16px;
+  color: #94a3b8;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Card */
+.card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  padding: 32px;
+  width: 100%;
+  max-width: 400px;
+  color: #f1f5f9;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.location {
+  display: flex;
+  flex-direction: column;
+}
+
+.city {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.country {
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+  margin-top: 2px;
+}
+
+/* Refresh button */
+.refresh-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #f1f5f9;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.refresh-btn:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+.icon-btn {
+  font-size: 20px;
+  padding: 4px 10px;
+  line-height: 1;
+}
+
+.icon-btn.spinning {
+  animation: spin 0.8s linear infinite;
+  opacity: 0.5;
+}
+
+/* Hero */
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.weather-icon {
+  width: 80px;
+  height: 80px;
+  filter: drop-shadow(0 0 12px rgba(255,255,255,0.3));
+}
+
+.temp-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.temp {
+  font-size: 80px;
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -4px;
+}
+
+.unit {
+  font-size: 28px;
+  font-weight: 300;
+  margin-top: 12px;
+  color: rgba(255,255,255,0.7);
+}
+
+.description {
+  font-size: 18px;
+  font-weight: 400;
+  text-transform: capitalize;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 4px;
+}
+
+.feels-like {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 28px;
+}
+
+/* Stats grid */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.stat {
+  background: rgba(255,255,255,0.06);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: rgba(255,255,255,0.45);
+}
+
+.stat-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wind-dir {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+}
+
+.wind-arrow {
+  display: inline-block;
+  font-size: 13px;
+}
+
+.updated {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+}
+
+.error-msg {
+  font-size: 14px;
+}
+
+/* 24-hour forecast grid */
+.forecast-section {
+  margin-bottom: 16px;
+}
+
+.forecast-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 8px;
+}
+
+.forecast-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.forecast-row {
+  display: grid;
+  grid-template-columns: 44px 28px 1fr 44px 52px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.06);
+}
+
+.forecast-row.now {
+  background: rgba(255,255,255,0.14);
+  border-left: 2px solid rgba(255,255,255,0.4);
+}
+
+.forecast-row:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.forecast-hour {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.6);
+  white-space: nowrap;
+}
+
+.forecast-row.now .forecast-hour {
+  color: #f1f5f9;
+}
+
+.forecast-emoji {
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+}
+
+.forecast-desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  text-transform: capitalize;
+}
+
+.forecast-temp {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  text-align: right;
+}
+
+.forecast-precip {
+  font-size: 11px;
+  color: #7dd3fc;
+  text-align: right;
+}
+
+/* Search */
+.search-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  flex: 1;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 14px;
+  color: #f1f5f9;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.search-input::placeholder {
+  color: rgba(255,255,255,0.35);
+}
+
+.search-input:focus {
+  border-color: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.14);
+}
+
+.search-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  color: #f1f5f9;
+  font-size: 18px;
+  width: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.search-btn:hover { background: rgba(255,255,255,0.22); }
+.search-btn:disabled { opacity: 0.4; cursor: default; }
+
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #f1f5f9;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+/* Suggestions dropdown */
+.suggestions {
+  list-style: none;
+  margin: -8px 0 12px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(15, 30, 60, 0.85);
+  backdrop-filter: blur(16px);
+}
+
+.suggestion-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: #f1f5f9;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.suggestion-item:hover { background: rgba(255,255,255,0.1); }
+
+.suggestion-item strong { font-weight: 500; }
+
+.suggestion-item span {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap;
+}
+
+.suggestions li + li {
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.geo-error {
+  font-size: 13px;
+  color: #fca5a5;
+  margin: -8px 0 12px;
+}
+
+/* City name display */
+.city-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.country-name {
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+  margin-top: 2px;
+}
+
+/* Water temperature section */
+.water-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+}
+
+.water-section.sea {
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.35), rgba(8, 145, 178, 0.2));
+}
+
+.water-section.lake {
+  background: linear-gradient(135deg, rgba(22, 101, 52, 0.35), rgba(20, 120, 80, 0.2));
+  border-color: rgba(110, 231, 183, 0.2);
+}
+
+.water-section.water-loading {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.1);
+  gap: 10px;
+}
+
+.water-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.water-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.water-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  opacity: 0.8;
+}
+
+.water-section.sea .water-label   { color: #7dd3fc; }
+.water-section.lake .water-label  { color: #6ee7b7; }
+.water-section.water-loading .water-label { color: rgba(255,255,255,0.4); font-size: 13px; text-transform: none; letter-spacing: 0; }
+
+.water-temp {
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.water-section.sea .water-temp  { color: #e0f2fe; }
+.water-section.lake .water-temp { color: #d1fae5; }
+
+.water-temp.no-temp {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0;
+}
