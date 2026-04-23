@@ -489,6 +489,7 @@ Be concise — this is a mobile chat panel.`
     ?? (waterInfo?.type === "lake" ? "Nearby lake" : "Nearby sea");
 
   return (
+    <>
     <div className={`screen main-screen ${isDay ? "day" : "night"}`}>
       <div className="card">
 
@@ -677,8 +678,9 @@ Be concise — this is a mobile chat panel.`
 
         {lastUpdated && <p className="updated">Updated at {formatTime(lastUpdated)}</p>}
       </div>
+    </div>
 
-      {/* Floating chat button */}
+      {/* Floating chat button — outside .screen so position:fixed works */}
       <button
         className="chat-fab"
         onClick={() => setChatOpen(o => !o)}
@@ -734,6 +736,6 @@ Be concise — this is a mobile chat panel.`
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
