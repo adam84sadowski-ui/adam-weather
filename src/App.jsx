@@ -328,6 +328,7 @@ export default function App() {
   const [messages, setMessages]       = useState([]);
   const [chatInput, setChatInput]     = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   // ── refs ─────────────────────────────────────────────────────────────────────
   const inputRef      = useRef(null);
@@ -450,6 +451,21 @@ Be concise — this is a mobile chat panel.`
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, chatLoading]);
+
+  // Shift chat panel up when iOS keyboard opens
+  useEffect(() => {
+    if (!window.visualViewport) return;
+    const onResize = () => {
+      const offset = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+      setKeyboardOffset(Math.max(0, offset));
+    };
+    window.visualViewport.addEventListener("resize", onResize);
+    window.visualViewport.addEventListener("scroll", onResize);
+    return () => {
+      window.visualViewport.removeEventListener("resize", onResize);
+      window.visualViewport.removeEventListener("scroll", onResize);
+    };
+  }, []);
 
   const renderChatMessage = (text) => {
     const parts = text.split(/\[CITY: ([^\]]+)\]/g);
@@ -685,13 +701,14 @@ Be concise — this is a mobile chat panel.`
         className="chat-fab"
         onClick={() => setChatOpen(o => !o)}
         title="Ask the weather assistant"
+        style={{ bottom: `${24 + keyboardOffset}px` }}
       >
         {chatOpen ? "✕" : "💬"}
       </button>
 
       {/* Chat panel */}
       {chatOpen && (
-        <div className="chat-panel">
+        <div className="chat-panel" style={{ bottom: `${90 + keyboardOffset}px` }}>
           <div className="chat-header">
             <span>✈️ Travel & Weather Assistant</span>
             {messages.length > 0 && (
