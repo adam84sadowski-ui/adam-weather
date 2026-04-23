@@ -306,82 +306,17 @@ function WindDirection({ deg }) {
 
 // ── component ────────────────────────────────────────────────────────────────
 
+const MAX_MESSAGES = 20;
+
 export default function App() {
+  // ── state ────────────────────────────────────────────────────────────────────
   const [city, setCity]               = useState(DEFAULT_CITY);
   const [query, setQuery]             = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [geoLoading, setGeoLoading]   = useState(false);
   const [geoError, setGeoError]       = useState("");
   const [locating, setLocating]       = useState(false);
-
   const [tab, setTab]                 = useState("now");
-
-  const [chatOpen, setChatOpen]       = useState(false);
-  const [messages, setMessages]       = useState([]);
-  const [chatInput, setChatInput]     = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const chatBottomRef                 = useRef(null);
-
-  const MAX_MESSAGES = 20;
-
-  const sendChatMessage = useCallback(async () => {
-    if (!chatInput.trim() || chatLoading) return;
-    if (messages.length >= MAX_MESSAGES) return;
-
-    const userMsg = { role: "user", content: chatInput.trim() };
-    const updated = [...messages, userMsg];
-    setMessages(updated);
-    setChatInput("");
-    setChatLoading(true);
-
-    const needsSearch = /flight|price|event|hotel|current|today|now|this week|news|ticket/i.test(userMsg.content);
-
-    const systemPrompt = weather
-      ? `You are a helpful travel and weather assistant built into a weather app.
-The user is currently viewing weather for: ${city.name}${city.country ? ", " + countryName(city.country) : ""}.
-Current conditions: ${Math.round(weather.main.temp)}°C, ${weather.weather[0].description}.
-Help them plan travel or understand weather. When suggesting cities to visit, format them as [CITY: CityName] so the app can make them tappable and load weather for that city instantly.
-Be concise — this is a mobile chat panel.`
-      : "You are a helpful travel and weather assistant. Be concise.";
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: updated, systemPrompt, useSearch: needsSearch }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
-    } catch (err) {
-      setMessages(prev => [...prev, { role: "assistant", content: `Sorry, something went wrong: ${err.message}` }]);
-    } finally {
-      setChatLoading(false);
-    }
-  }, [chatInput, chatLoading, messages, city, weather]);
-
-  useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, chatLoading]);
-
-  const renderChatMessage = (text) => {
-    const parts = text.split(/\[CITY: ([^\]]+)\]/g);
-    return parts.map((part, i) =>
-      i % 2 === 1 ? (
-        <button
-          key={i}
-          className="city-chip"
-          onClick={() => {
-            setQuery(part);
-            setChatOpen(false);
-          }}
-        >
-          📍 {part}
-        </button>
-      ) : part
-    );
-  };
-
   const [weather, setWeather]         = useState(null);
   const [waterInfo, setWaterInfo]     = useState(undefined);
   const [forecast, setForecast]       = useState(null);
@@ -389,8 +324,14 @@ Be concise — this is a mobile chat panel.`
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [chatOpen, setChatOpen]       = useState(false);
+  const [messages, setMessages]       = useState([]);
+  const [chatInput, setChatInput]     = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
-  const inputRef = useRef(null);
+  // ── refs ─────────────────────────────────────────────────────────────────────
+  const inputRef      = useRef(null);
+  const chatBottomRef = useRef(null);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -468,6 +409,57 @@ Be concise — this is a mobile chat panel.`
     setQuery("");
     setSuggestions([]);
     setGeoError("");
+  };
+
+  const sendChatMessage = useCallback(async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    if (messages.length >= MAX_MESSAGES) return;
+
+    const userMsg = { role: "user", content: chatInput.trim() };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
+    setChatInput("");
+    setChatLoading(true);
+
+    const needsSearch = /flight|price|event|hotel|current|today|now|this week|news|ticket/i.test(userMsg.content);
+
+    const systemPrompt = weather
+      ? `You are a helpful travel and weather assistant built into a weather app.
+The user is currently viewing weather for: ${city.name}${city.country ? ", " + countryName(city.country) : ""}.
+Current conditions: ${Math.round(weather.main.temp)}°C, ${weather.weather[0].description}.
+Help them plan travel or understand weather. When suggesting cities to visit, format them as [CITY: CityName] so the app can make them tappable and load weather for that city instantly.
+Be concise — this is a mobile chat panel.`
+      : "You are a helpful travel and weather assistant. Be concise.";
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: updated, systemPrompt, useSearch: needsSearch }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", content: `Sorry, something went wrong: ${err.message}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatInput, chatLoading, messages, city, weather]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, chatLoading]);
+
+  const renderChatMessage = (text) => {
+    const parts = text.split(/\[CITY: ([^\]]+)\]/g);
+    return parts.map((part, i) =>
+      i % 2 === 1 ? (
+        <button key={i} className="city-chip" onClick={() => { setQuery(part); setChatOpen(false); }}>
+          📍 {part}
+        </button>
+      ) : part
+    );
   };
 
   if (error && !weather) {
