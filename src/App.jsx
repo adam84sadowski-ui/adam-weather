@@ -306,7 +306,7 @@ function WindDirection({ deg }) {
 
 // ── component ────────────────────────────────────────────────────────────────
 
-const MAX_MESSAGES = 20;
+const MAX_MESSAGES = 20; // v2
 
 export default function App() {
   // ── state ────────────────────────────────────────────────────────────────────
