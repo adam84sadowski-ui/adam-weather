@@ -316,6 +316,72 @@ export default function App() {
 
   const [tab, setTab]                 = useState("now");
 
+  const [chatOpen, setChatOpen]       = useState(false);
+  const [messages, setMessages]       = useState([]);
+  const [chatInput, setChatInput]     = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatBottomRef                 = useRef(null);
+
+  const MAX_MESSAGES = 20;
+
+  const sendChatMessage = useCallback(async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    if (messages.length >= MAX_MESSAGES) return;
+
+    const userMsg = { role: "user", content: chatInput.trim() };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
+    setChatInput("");
+    setChatLoading(true);
+
+    const needsSearch = /flight|price|event|hotel|current|today|now|this week|news|ticket/i.test(userMsg.content);
+
+    const systemPrompt = weather
+      ? `You are a helpful travel and weather assistant built into a weather app.
+The user is currently viewing weather for: ${city.name}${city.country ? ", " + countryName(city.country) : ""}.
+Current conditions: ${Math.round(weather.main.temp)}°C, ${weather.weather[0].description}.
+Help them plan travel or understand weather. When suggesting cities to visit, format them as [CITY: CityName] so the app can make them tappable and load weather for that city instantly.
+Be concise — this is a mobile chat panel.`
+      : "You are a helpful travel and weather assistant. Be concise.";
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: updated, systemPrompt, useSearch: needsSearch }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", content: `Sorry, something went wrong: ${err.message}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatInput, chatLoading, messages, city, weather]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, chatLoading]);
+
+  const renderChatMessage = (text) => {
+    const parts = text.split(/\[CITY: ([^\]]+)\]/g);
+    return parts.map((part, i) =>
+      i % 2 === 1 ? (
+        <button
+          key={i}
+          className="city-chip"
+          onClick={() => {
+            setQuery(part);
+            setChatOpen(false);
+          }}
+        >
+          📍 {part}
+        </button>
+      ) : part
+    );
+  };
+
   const [weather, setWeather]         = useState(null);
   const [waterInfo, setWaterInfo]     = useState(undefined);
   const [forecast, setForecast]       = useState(null);
@@ -619,6 +685,63 @@ export default function App() {
 
         {lastUpdated && <p className="updated">Updated at {formatTime(lastUpdated)}</p>}
       </div>
+
+      {/* Floating chat button */}
+      <button
+        className="chat-fab"
+        onClick={() => setChatOpen(o => !o)}
+        title="Ask the weather assistant"
+      >
+        {chatOpen ? "✕" : "💬"}
+      </button>
+
+      {/* Chat panel */}
+      {chatOpen && (
+        <div className="chat-panel">
+          <div className="chat-header">
+            <span>✈️ Travel & Weather Assistant</span>
+            {messages.length > 0 && (
+              <button className="chat-clear" onClick={() => setMessages([])}>Clear</button>
+            )}
+          </div>
+
+          <div className="chat-messages">
+            {messages.length === 0 && (
+              <p className="chat-empty">Ask me where to travel based on weather, or anything about {city.name} ☀️</p>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} className={`chat-bubble ${m.role}`}>
+                {m.role === "assistant" ? renderChatMessage(m.content) : m.content}
+              </div>
+            ))}
+            {chatLoading && (
+              <div className="chat-bubble assistant chat-thinking">
+                <span className="spinner-sm" /> thinking…
+              </div>
+            )}
+            {messages.length >= MAX_MESSAGES && (
+              <p className="chat-limit">Message limit reached. Clear chat to continue.</p>
+            )}
+            <div ref={chatBottomRef} />
+          </div>
+
+          <div className="chat-input-row">
+            <input
+              className="chat-input"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && sendChatMessage()}
+              placeholder="Where should I go next week?"
+              disabled={chatLoading || messages.length >= MAX_MESSAGES}
+            />
+            <button
+              className="chat-send"
+              onClick={sendChatMessage}
+              disabled={chatLoading || !chatInput.trim() || messages.length >= MAX_MESSAGES}
+            >↑</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
