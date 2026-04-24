@@ -54,6 +54,7 @@ function haversineDist(lat1, lon1, lat2, lon2) {
 
 const SEAS = [
   { name: "Baltic Sea",         lat: 58.5, lon:  19.0 },
+  { name: "Baltic Sea",         lat: 55.5, lon:  18.5 },
   { name: "Gulf of Finland",    lat: 60.0, lon:  26.0 },
   { name: "Gulf of Bothnia",    lat: 63.0, lon:  21.0 },
   { name: "Gulf of Riga",       lat: 57.5, lon:  23.5 },
