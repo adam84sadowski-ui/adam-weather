@@ -480,9 +480,10 @@ export default function App() {
     try {
       const results = await geocode(query.trim());
       if (!results.length) { setGeoError("No cities found."); return; }
+      const norm = s => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
       const seen = new Set();
       const unique = results.filter(r => {
-        const key = `${r.lat.toFixed(2)}_${r.lon.toFixed(2)}`;
+        const key = `${norm(r.name)}_${norm(r.state)}_${r.country}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
