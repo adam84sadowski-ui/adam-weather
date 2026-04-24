@@ -480,8 +480,15 @@ export default function App() {
     try {
       const results = await geocode(query.trim());
       if (!results.length) { setGeoError("No cities found."); return; }
-      if (results.length === 1) { pickCity(results[0]); return; }
-      setSuggestions(results);
+      const seen = new Set();
+      const unique = results.filter(r => {
+        const key = `${r.lat.toFixed(2)}_${r.lon.toFixed(2)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (unique.length === 1) { pickCity(unique[0]); return; }
+      setSuggestions(unique);
     } catch {
       setGeoError("Search failed — check your connection.");
     } finally {
