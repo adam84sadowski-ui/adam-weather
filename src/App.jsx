@@ -54,6 +54,7 @@ function haversineDist(lat1, lon1, lat2, lon2) {
 
 const SEAS = [
   { name: "Baltic Sea",         lat: 58.5, lon:  19.0 },
+  { name: "Baltic Sea",         lat: 55.5, lon:  18.5 },
   { name: "Gulf of Finland",    lat: 60.0, lon:  26.0 },
   { name: "Gulf of Bothnia",    lat: 63.0, lon:  21.0 },
   { name: "Gulf of Riga",       lat: 57.5, lon:  23.5 },
@@ -67,8 +68,14 @@ const SEAS = [
   { name: "White Sea",          lat: 65.5, lon:  33.0 },
   { name: "Arctic Ocean",       lat: 85.0, lon:   0.0 },
   { name: "Atlantic Ocean",     lat: 50.0, lon: -14.0 },
-  { name: "Atlantic Ocean",     lat: 38.0, lon: -65.0 },
+  { name: "Atlantic Ocean",     lat: 40.5, lon: -68.0 },
+  { name: "Atlantic Ocean",     lat: 26.5, lon: -73.0 },
+  { name: "Atlantic Ocean",     lat: 17.0, lon: -61.0 },
   { name: "Atlantic Ocean",     lat: 14.0, lon: -20.0 },
+  { name: "Atlantic Ocean",     lat: 38.0, lon: -65.0 },
+  { name: "Atlantic Ocean",     lat: -5.0, lon: -33.0 },
+  { name: "Atlantic Ocean",     lat:-23.0, lon: -41.0 },
+  { name: "Atlantic Ocean",     lat:-40.0, lon: -45.0 },
   { name: "Atlantic Ocean",     lat:-30.0, lon: -20.0 },
   { name: "Mediterranean Sea",  lat: 38.0, lon:  15.0 },
   { name: "Adriatic Sea",       lat: 43.0, lon:  16.0 },
@@ -85,8 +92,10 @@ const SEAS = [
   { name: "Arabian Sea",        lat: 15.0, lon:  65.0 },
   { name: "Bay of Bengal",      lat: 15.0, lon:  88.0 },
   { name: "Indian Ocean",       lat:  8.0, lon:  75.0 },
+  { name: "Indian Ocean",       lat:-10.0, lon:  55.0 },
   { name: "Indian Ocean",       lat:-25.0, lon:  80.0 },
   { name: "Indian Ocean",       lat:-30.0, lon:  45.0 },
+  { name: "Indian Ocean",       lat:-28.0, lon: 110.0 },
   { name: "Indian Ocean",       lat:-20.0, lon: 100.0 },
   { name: "Pacific Ocean",      lat: 48.0, lon:-127.0 },
   { name: "Pacific Ocean",      lat: 34.0, lon:-122.0 },
@@ -471,8 +480,16 @@ export default function App() {
     try {
       const results = await geocode(query.trim());
       if (!results.length) { setGeoError("No cities found."); return; }
-      if (results.length === 1) { pickCity(results[0]); return; }
-      setSuggestions(results);
+      const norm = s => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const seen = new Set();
+      const unique = results.filter(r => {
+        const key = `${norm(r.name)}_${norm(r.state)}_${r.country}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (unique.length === 1) { pickCity(unique[0]); return; }
+      setSuggestions(unique);
     } catch {
       setGeoError("Search failed — check your connection.");
     } finally {
