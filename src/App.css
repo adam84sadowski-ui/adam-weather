@@ -740,3 +740,106 @@
 
 .chat-send:hover:not(:disabled) { background: rgba(255,255,255,0.28); }
 .chat-send:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Climate Tab ─────────────────────────────────────────────────────────── */
+
+.climate-tab {
+  padding-bottom: 8px;
+}
+
+.climate-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.45);
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.climate-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 90px;
+  margin-bottom: 4px;
+  padding: 0 2px;
+}
+
+.climate-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.climate-bar-col span {
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
+}
+
+.climate-bar-col.selected span {
+  color: rgba(255,255,255,0.9);
+}
+
+.climate-bar {
+  width: 100%;
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px 3px 0 0;
+  transition: background 0.2s;
+  min-height: 4px;
+}
+
+.climate-bar-col.selected .climate-bar {
+  background: rgba(125, 211, 252, 0.65);
+}
+
+.climate-bar-col:hover:not(.selected) .climate-bar {
+  background: rgba(255,255,255,0.35);
+}
+
+.climate-month-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  margin: 12px 0 10px;
+}
+
+.climate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.climate-stat {
+  background: rgba(255,255,255,0.06);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.climate-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: rgba(255,255,255,0.45);
+}
+
+.climate-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #f1f5f9;
+}
+
+.climate-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
