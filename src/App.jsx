@@ -329,6 +329,9 @@ export default function App() {
   const [chatInput, setChatInput]     = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [climateData, setClimateData]           = useState(null);
+  const [climateLoading, setClimateLoading]     = useState(false);
+  const [selectedMonth, setSelectedMonth]       = useState(new Date().getMonth());
 
   // ── refs ─────────────────────────────────────────────────────────────────────
   const inputRef      = useRef(null);
@@ -356,10 +359,82 @@ export default function App() {
   // Auto-locate on first load
   useEffect(() => { useMyLocation(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fetchClimateData = useCallback(async (lat, lon) => {
+    const cacheKey = `climate_${lat.toFixed(2)}_${lon.toFixed(2)}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const { months, ts } = JSON.parse(cached);
+      if (Date.now() - ts < 7 * 24 * 60 * 60 * 1000) { setClimateData(months); return; }
+    }
+    setClimateLoading(true);
+    try {
+      const currentYear = new Date().getFullYear();
+      const years = [1, 2, 3, 4, 5].map(n => currentYear - n);
+      const [yearlyData, marineData] = await Promise.all([
+        Promise.all(years.map(year =>
+          fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
+            `&start_date=${year}-01-01&end_date=${year}-12-31` +
+            `&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,` +
+            `precipitation_sum,snowfall_sum,cloudcover_mean,sunshine_duration&timezone=auto`)
+            .then(r => r.json()).catch(() => null)
+        )),
+        Promise.all(years.map(year =>
+          fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}` +
+            `&start_date=${year}-01-01&end_date=${year}-12-31` +
+            `&daily=sea_surface_temperature_max&timezone=auto`)
+            .then(r => r.json()).catch(() => null)
+        )),
+      ]);
+
+      const avg = (datasets, key, monthIdx) => {
+        const vals = datasets.flatMap(yr => {
+          if (!yr?.daily?.[key]) return [];
+          return yr.daily.time
+            .map((date, i) => ({ date, val: yr.daily[key][i] }))
+            .filter(({ date, val }) => new Date(date).getMonth() === monthIdx && val !== null)
+            .map(({ val }) => val);
+        });
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      };
+
+      const countDays = (datasets, key, monthIdx, threshold = 0) => {
+        const vals = datasets.flatMap(yr => {
+          if (!yr?.daily?.[key]) return [];
+          return yr.daily.time
+            .filter((date, i) => {
+              const v = yr.daily[key][i];
+              return new Date(date).getMonth() === monthIdx && v !== null && v > threshold;
+            });
+        });
+        return vals.length / years.length;
+      };
+
+      const months = Array.from({ length: 12 }, (_, monthIdx) => ({
+        avgTemp:    avg(yearlyData,  "temperature_2m_mean", monthIdx),
+        maxTemp:    avg(yearlyData,  "temperature_2m_max",  monthIdx),
+        minTemp:    avg(yearlyData,  "temperature_2m_min",  monthIdx),
+        rainDays:   countDays(yearlyData,  "precipitation_sum", monthIdx, 1),
+        snowDays:   countDays(yearlyData,  "snowfall_sum", monthIdx, 0),
+        cloudCover: avg(yearlyData,  "cloudcover_mean",     monthIdx),
+        sunshineHrs: avg(yearlyData, "sunshine_duration",   monthIdx) != null
+          ? avg(yearlyData, "sunshine_duration", monthIdx) / 3600 : null,
+        waterTemp:  avg(marineData,  "sea_surface_temperature_max", monthIdx),
+      }));
+
+      setClimateData(months);
+      localStorage.setItem(cacheKey, JSON.stringify({ months, ts: Date.now() }));
+    } catch (err) {
+      console.error("Climate fetch error:", err);
+    } finally {
+      setClimateLoading(false);
+    }
+  }, []);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     setWaterInfo(undefined);
+    setClimateData(null);
     const { lat, lon } = city;
     try {
       const [weatherRes, water, hours, days] = await Promise.all([
@@ -576,9 +651,13 @@ Be concise — this is a mobile chat panel.`
 
         {/* Tab bar */}
         <div className="tab-bar">
-          <button className={`tab-btn ${tab === "now"    ? "active" : ""}`} onClick={() => setTab("now")}>Now</button>
-          <button className={`tab-btn ${tab === "72h"    ? "active" : ""}`} onClick={() => setTab("72h")}>72h</button>
-          <button className={`tab-btn ${tab === "14days" ? "active" : ""}`} onClick={() => setTab("14days")}>14 days</button>
+          <button className={`tab-btn ${tab === "now"     ? "active" : ""}`} onClick={() => setTab("now")}>Now</button>
+          <button className={`tab-btn ${tab === "72h"     ? "active" : ""}`} onClick={() => setTab("72h")}>72h</button>
+          <button className={`tab-btn ${tab === "14days"  ? "active" : ""}`} onClick={() => setTab("14days")}>14 days</button>
+          <button className={`tab-btn ${tab === "climate" ? "active" : ""}`} onClick={() => {
+            setTab("climate");
+            if (!climateData && !climateLoading) fetchClimateData(city.lat, city.lon);
+          }}>Climate</button>
         </div>
 
         {/* Tab: Now */}
@@ -689,6 +768,73 @@ Be concise — this is a mobile chat panel.`
             ) : (
               <p className="no-data">Forecast unavailable</p>
             )}
+          </div>
+        )}
+
+        {/* Tab: Climate */}
+        {tab === "climate" && (
+          <div className="climate-tab">
+            {climateLoading && (
+              <div className="climate-loading">
+                <span className="spinner-sm" /> Loading 5-year history…
+              </div>
+            )}
+            {climateData && (() => {
+              const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+              const MONTHS_LONG  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+              const temps   = climateData.map(m => m.avgTemp ?? 0);
+              const maxTemp = Math.max(...temps);
+              const minTemp = Math.min(...temps);
+              const range   = maxTemp - minTemp || 1;
+              const m       = climateData[selectedMonth];
+              return (
+                <>
+                  <div className="climate-bars">
+                    {climateData.map((mo, i) => {
+                      const h = ((mo.avgTemp - minTemp) / range) * 70 + 15;
+                      return (
+                        <div key={i} className={`climate-bar-col ${i === selectedMonth ? "selected" : ""}`} onClick={() => setSelectedMonth(i)}>
+                          <div className="climate-bar" style={{ height: `${h}%` }} />
+                          <span>{MONTHS_SHORT[i]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="climate-detail">
+                    <p className="climate-month-title">{MONTHS_LONG[selectedMonth]} · 5-year avg</p>
+                    <div className="climate-grid">
+                      <div className="climate-stat">
+                        <span className="climate-label">Air temp</span>
+                        <span className="climate-value">{m.avgTemp?.toFixed(1)}°C</span>
+                        <span className="climate-sub">{m.minTemp?.toFixed(0)}° / {m.maxTemp?.toFixed(0)}°</span>
+                      </div>
+                      {m.waterTemp != null && (
+                        <div className="climate-stat">
+                          <span className="climate-label">Water temp</span>
+                          <span className="climate-value">{m.waterTemp?.toFixed(1)}°C</span>
+                        </div>
+                      )}
+                      <div className="climate-stat">
+                        <span className="climate-label">Rain days</span>
+                        <span className="climate-value">{m.rainDays?.toFixed(1)}</span>
+                      </div>
+                      <div className="climate-stat">
+                        <span className="climate-label">Snow days</span>
+                        <span className="climate-value">{m.snowDays?.toFixed(1)}</span>
+                      </div>
+                      <div className="climate-stat">
+                        <span className="climate-label">Sunshine</span>
+                        <span className="climate-value">{m.sunshineHrs?.toFixed(1)} hrs/day</span>
+                      </div>
+                      <div className="climate-stat">
+                        <span className="climate-label">Cloud cover</span>
+                        <span className="climate-value">{m.cloudCover?.toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 
