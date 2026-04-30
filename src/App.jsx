@@ -202,14 +202,19 @@ async function fetchWaterInfo(lat, lon) {
 function owmEmoji(id, icon) {
   const isNight = icon?.endsWith("n");
   if (id >= 200 && id < 300) return "⛈️";
-  if (id >= 300 && id < 400) return "🌦️";
-  if (id >= 500 && id < 600) return id >= 511 ? "🌨️" : id >= 502 ? "🌧️" : "🌦️";
+  if (id >= 300 && id < 400) return isNight ? "🌧️" : "🌦️";
+  if (id >= 500 && id < 600) {
+    if (id >= 511) return "🌨️";
+    if (id >= 502) return "🌧️";
+    return isNight ? "🌧️" : "🌦️";
+  }
   if (id >= 600 && id < 700) return "❄️";
   if (id >= 700 && id < 800) return "🌫️";
   if (id === 800) return isNight ? "🌙" : "☀️";
-  if (id === 801) return isNight ? "🌙🌤️" : "🌤️";
-  if (id === 802) return isNight ? "🌙⛅" : "⛅";
-  if (id >= 803) return "☁️";
+  if (id === 801) return isNight ? "🌙" : "🌤️";
+  if (id === 802) return isNight ? "🌙" : "⛅";
+  if (id === 803) return isNight ? "☁️" : "🌥️";
+  if (id >= 804) return "☁️";
   return "🌡️";
 }
 
