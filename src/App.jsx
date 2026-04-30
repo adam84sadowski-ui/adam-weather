@@ -244,7 +244,7 @@ async function fetchDailyForecast(lat, lon) {
   try {
     const params = new URLSearchParams({
       latitude: lat, longitude: lon,
-      daily: "weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max",
+      daily: "weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max,winddirection_10m_dominant",
       forecast_days: 14,
       timezone: "auto",
     });
@@ -260,7 +260,8 @@ async function fetchDailyForecast(lat, lon) {
       max:    Math.round(d.daily.temperature_2m_max[i]),
       min:    Math.round(d.daily.temperature_2m_min[i]),
       precip: d.daily.precipitation_probability_max[i] ?? 0,
-      wind:   Math.round(d.daily.windspeed_10m_max[i]),
+      wind:    Math.round(d.daily.windspeed_10m_max[i]),
+      windDeg: d.daily.winddirection_10m_dominant?.[i] ?? null,
     }));
   } catch { return null; }
 }
@@ -275,11 +276,13 @@ async function fetchHourlyForecast(lat, lon) {
     const d = await res.json();
     if (!d.list?.length) return null;
     return d.list.map(item => ({
-      time:   new Date(item.dt * 1000),
-      temp:   Math.round(item.main.temp),
-      desc:   item.weather[0].description,
-      emoji:  owmEmoji(item.weather[0].id, item.weather[0].icon),
-      precip: Math.round((item.pop ?? 0) * 100),
+      time:      new Date(item.dt * 1000),
+      temp:      Math.round(item.main.temp),
+      desc:      item.weather[0].description,
+      emoji:     owmEmoji(item.weather[0].id, item.weather[0].icon),
+      precip:    Math.round((item.pop ?? 0) * 100),
+      windSpeed: Math.round((item.wind?.speed ?? 0) * 3.6),
+      windDeg:   item.wind?.deg ?? 0,
     }));
   } catch { return null; }
 }
@@ -613,7 +616,13 @@ Be concise — this is a mobile chat panel.`
     const parts = text.split(/\[CITY: ([^\]]+)\]/g);
     return parts.map((part, i) =>
       i % 2 === 1 ? (
-        <button key={i} className="city-chip" onClick={() => { setQuery(part); setChatOpen(false); }}>
+        <button key={i} className="city-chip" onClick={async () => {
+          setChatOpen(false);
+          try {
+            const results = await geocode(part);
+            if (results.length) pickCity(results[0]);
+          } catch {}
+        }}>
           📍 {part}
         </button>
       ) : part
@@ -820,6 +829,7 @@ Be concise — this is a mobile chat panel.`
                     <span className="forecast-emoji">{h.emoji}</span>
                     <span className="forecast-desc">{h.desc}</span>
                     <span className="forecast-temp">{h.temp}°C</span>
+                    <span className="forecast-wind">{h.windSpeed} <WindDirection deg={h.windDeg} /></span>
                     <span className="forecast-precip">{h.precip > 0 ? `💧${h.precip}%` : ""}</span>
                   </div>
                 ))}
@@ -848,6 +858,9 @@ Be concise — this is a mobile chat panel.`
                     <span className="forecast-range">
                       <span className="temp-max">{d.max}°</span>
                       <span className="temp-min">{d.min}°</span>
+                    </span>
+                    <span className="forecast-wind">
+                      {d.wind}{d.windDeg != null && <WindDirection deg={d.windDeg} />}
                     </span>
                     <span className="forecast-precip">{d.precip > 0 ? `💧${d.precip}%` : ""}</span>
                   </div>
@@ -912,7 +925,9 @@ Be concise — this is a mobile chat panel.`
                       </div>
                       <div className="climate-stat">
                         <span className="climate-label">Sunshine</span>
-                        <span className="climate-value">{m.sunshineHrs?.toFixed(1)} hrs/day</span>
+                        <span className="climate-value">
+                          {m.sunshineHrs != null ? `${m.sunshineHrs.toFixed(1)} hrs/day` : "—"}
+                        </span>
                       </div>
                       <div className="climate-stat">
                         <span className="climate-label">Cloud cover</span>
