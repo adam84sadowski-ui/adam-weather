@@ -769,6 +769,18 @@ Be concise — this is a mobile chat panel.`
                   {formatTime(new Date(sys.sunrise * 1000))} / {formatTime(new Date(sys.sunset * 1000))}
                 </span>
               </div>
+              {(weather.rain?.["1h"] > 0) && (
+                <div className="stat">
+                  <span className="stat-label">Rain</span>
+                  <span className="stat-value">{weather.rain["1h"].toFixed(1)} mm/h</span>
+                </div>
+              )}
+              {(weather.snow?.["1h"] > 0) && (
+                <div className="stat">
+                  <span className="stat-label">Snow</span>
+                  <span className="stat-value">{weather.snow["1h"].toFixed(1)} mm/h</span>
+                </div>
+              )}
             </div>
 
             {waterInfo === undefined && (
