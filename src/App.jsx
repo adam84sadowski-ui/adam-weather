@@ -207,8 +207,8 @@ function owmEmoji(id, icon) {
   if (id >= 600 && id < 700) return "❄️";
   if (id >= 700 && id < 800) return "🌫️";
   if (id === 800) return isNight ? "🌙" : "☀️";
-  if (id === 801) return isNight ? "🌤️" : "🌤️";
-  if (id === 802) return "⛅";
+  if (id === 801) return isNight ? "🌙🌤️" : "🌤️";
+  if (id === 802) return isNight ? "🌙⛅" : "⛅";
   if (id >= 803) return "☁️";
   return "🌡️";
 }
@@ -308,7 +308,7 @@ function WindDirection({ deg }) {
   const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   return (
     <span className="wind-dir">
-      <span className="wind-arrow" style={{ transform: `rotate(${deg}deg)` }}>↑</span>
+      <span className="wind-arrow" style={{ transform: `rotate(${deg + 180}deg)` }}>↑</span>
       {dirs[Math.round(deg / 45) % 8]}
     </span>
   );
