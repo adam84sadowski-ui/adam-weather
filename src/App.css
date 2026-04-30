@@ -262,10 +262,10 @@
 
 .forecast-row {
   display: grid;
-  grid-template-columns: 44px 30px 26px 52px 1fr 44px;
+  grid-template-columns: 38px 24px 22px 44px 1fr 38px;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
+  gap: 5px;
+  padding: 7px 4px;
   background: rgba(255,255,255,0.06);
 }
 
@@ -318,7 +318,7 @@
 
 /* 14-day row overrides */
 .daily-row {
-  grid-template-columns: 36px 44px 26px 60px 1fr 44px;
+  grid-template-columns: 30px 38px 22px 50px 1fr 38px;
 }
 
 .forecast-day-label {
