@@ -839,7 +839,6 @@ Be concise — this is a mobile chat panel.`
                       {h.time.toLocaleDateString("en-GB", { weekday: "short" })}
                     </span>
                     <span className="forecast-emoji">{h.emoji}</span>
-                    <span className="forecast-desc">{h.desc}</span>
                     <span className="forecast-temp">{h.temp}°C</span>
                     <span className="forecast-wind">{h.windSpeed} <WindDirection deg={h.windDeg} /></span>
                     <span className="forecast-precip">{h.precip > 0 ? `💧${h.precip}%` : ""}</span>
@@ -866,7 +865,6 @@ Be concise — this is a mobile chat panel.`
                       {d.date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                     </span>
                     <span className="forecast-emoji">{d.emoji}</span>
-                    <span className="forecast-desc">{d.desc}</span>
                     <span className="forecast-range">
                       <span className="temp-max">{d.max}°</span>
                       <span className="temp-min">{d.min}°</span>
