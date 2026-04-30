@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import "./App.css";
+import SunCalc from "suncalc";
 
 const API_KEY          = import.meta.env.VITE_OWM_API_KEY;
 const WEATHER_URL      = "https://api.openweathermap.org/data/2.5/weather";
@@ -206,8 +207,8 @@ function owmEmoji(id, icon) {
   if (id >= 600 && id < 700) return "❄️";
   if (id >= 700 && id < 800) return "🌫️";
   if (id === 800) return isNight ? "🌙" : "☀️";
-  if (id === 801) return isNight ? "🌤️" : "🌤️";
-  if (id === 802) return "⛅";
+  if (id === 801) return isNight ? "🌙🌤️" : "🌤️";
+  if (id === 802) return isNight ? "🌙⛅" : "⛅";
   if (id >= 803) return "☁️";
   return "🌡️";
 }
@@ -307,9 +308,51 @@ function WindDirection({ deg }) {
   const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   return (
     <span className="wind-dir">
-      <span className="wind-arrow" style={{ transform: `rotate(${deg}deg)` }}>↑</span>
+      <span className="wind-arrow" style={{ transform: `rotate(${deg + 180}deg)` }}>↑</span>
       {dirs[Math.round(deg / 45) % 8]}
     </span>
+  );
+}
+
+// ── moon phase ───────────────────────────────────────────────────────────────
+
+const SYNODIC      = 29.53059;
+const REF_NEW_MOON = 947182440000; // 2000-01-06T18:14:00Z
+
+function computeMoonPhase(lat, lon) {
+  const now         = new Date();
+  const daysSince   = (now - REF_NEW_MOON) / 86400000;
+  const moonAge     = ((daysSince % SYNODIC) + SYNODIC) % SYNODIC;
+  const illumination = (1 - Math.cos(moonAge / SYNODIC * 2 * Math.PI)) / 2 * 100;
+  const half        = SYNODIC / 2;
+  const daysToFull  = moonAge < half ? half - moonAge : SYNODIC - moonAge + half;
+
+  let phaseName;
+  if      (moonAge <  1.85) phaseName = "New Moon";
+  else if (moonAge <  7.38) phaseName = "Waxing Crescent";
+  else if (moonAge <  9.22) phaseName = "First Quarter";
+  else if (moonAge < 14.77) phaseName = "Waxing Gibbous";
+  else if (moonAge < 16.61) phaseName = "Full Moon";
+  else if (moonAge < 22.15) phaseName = "Waning Gibbous";
+  else if (moonAge < 23.99) phaseName = "Last Quarter";
+  else                      phaseName = "Waning Crescent";
+
+  const moonTimes = SunCalc.getMoonTimes(now, lat, lon);
+  const moonrise  = moonTimes.rise ? formatTime(moonTimes.rise) : null;
+
+  return { moonAge, illumination, daysToFull, phaseName, moonrise };
+}
+
+function MoonIcon({ moonAge }) {
+  const size    = 48;
+  const phase   = moonAge / SYNODIC;
+  const shadowX = phase < 0.5
+    ? -phase * 2 * size          // waxing: shadow moves right off left edge
+    : (1 - phase) * 2 * size;   // waning: shadow moves left off right edge
+  return (
+    <div className="moon-disc">
+      <div className="moon-shadow" style={{ left: `${shadowX}px` }} />
+    </div>
   );
 }
 
@@ -341,6 +384,8 @@ export default function App() {
   const [climateData, setClimateData]           = useState(null);
   const [climateLoading, setClimateLoading]     = useState(false);
   const [selectedMonth, setSelectedMonth]       = useState(new Date().getMonth());
+
+  const moonData = useMemo(() => computeMoonPhase(city.lat, city.lon), [city.lat, city.lon]);
 
   // ── refs ─────────────────────────────────────────────────────────────────────
   const inputRef      = useRef(null);
@@ -730,6 +775,27 @@ Be concise — this is a mobile chat panel.`
                 </div>
               </div>
             )}
+
+            <div className="moon-section">
+              <MoonIcon moonAge={moonData.moonAge} />
+              <div className="moon-info">
+                <span className="moon-phase-name">{moonData.phaseName}</span>
+                <div className="moon-details">
+                  <span>{Math.round(moonData.illumination)}% illuminated</span>
+                  {moonData.moonrise && <span>↑ {moonData.moonrise}</span>}
+                </div>
+                <div className="moon-progress-track">
+                  <div className="moon-progress-fill" style={{ width: `${(moonData.moonAge / SYNODIC) * 100}%` }} />
+                </div>
+                <span className="moon-sub">
+                  Day {moonData.moonAge.toFixed(1)} of 29.5
+                  {" · "}
+                  {moonData.daysToFull < 1   ? "Full Moon tonight"
+                   : moonData.daysToFull < 2 ? "Full Moon tomorrow"
+                   : `${Math.round(moonData.daysToFull)} days to Full Moon`}
+                </span>
+              </div>
+            </div>
           </>
         )}
 
