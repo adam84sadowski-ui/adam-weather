@@ -287,6 +287,44 @@ async function fetchHourlyForecast(lat, lon) {
   } catch { return null; }
 }
 
+// ── UV helpers ───────────────────────────────────────────────────────────────
+
+async function fetchUVData(lat, lon) {
+  try {
+    const params = new URLSearchParams({
+      latitude: lat, longitude: lon,
+      hourly: "uv_index",
+      forecast_days: 2,
+      timezone: "auto",
+    });
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d.hourly?.time?.length) return null;
+    return d.hourly.time.map((t, i) => ({
+      time: new Date(t),
+      uv:   d.hourly.uv_index[i] ?? 0,
+    }));
+  } catch { return null; }
+}
+
+function uvInfo(uv) {
+  if (uv < 3)  return { label: "Low",       color: "#4ade80", spf: "None",  maxMin: "No limit", reapply: "—"        };
+  if (uv < 6)  return { label: "Moderate",  color: "#facc15", spf: "15–30", maxMin: "30 min",   reapply: "every 2h" };
+  if (uv < 8)  return { label: "High",      color: "#f97316", spf: "30+",   maxMin: "20 min",   reapply: "every 2h" };
+  if (uv < 11) return { label: "Very High", color: "#ef4444", spf: "50+",   maxMin: "10 min",   reapply: "every 1h" };
+  return              { label: "Extreme",   color: "#7c3aed", spf: "50+",   maxMin: "Avoid",    reapply: "every 1h" };
+}
+
+function uvTanDesc(uv) {
+  if (uv < 1)  return "No UV · no tanning possible";
+  if (uv < 3)  return "Minimal tanning · no protection needed";
+  if (uv < 6)  return "Good tanning · SPF 15–30 recommended";
+  if (uv < 8)  return "Effective tanning · SPF 30+, max 20 min";
+  if (uv < 11) return "Burn risk · SPF 50+, short sessions only";
+  return               "Extreme · avoid direct sun exposure";
+}
+
 // ── misc helpers ─────────────────────────────────────────────────────────────
 
 async function geocode(query) {
@@ -392,6 +430,7 @@ export default function App() {
   const [climateData, setClimateData]           = useState(null);
   const [climateLoading, setClimateLoading]     = useState(false);
   const [selectedMonth, setSelectedMonth]       = useState(new Date().getMonth());
+  const [uvData, setUvData]                     = useState(null);
 
   const moonData = useMemo(() => computeMoonPhase(city.lat, city.lon), [city.lat, city.lon]);
 
@@ -499,17 +538,19 @@ export default function App() {
     setClimateData(null);
     const { lat, lon } = city;
     try {
-      const [weatherRes, water, hours, days] = await Promise.all([
+      const [weatherRes, water, hours, days, uv] = await Promise.all([
         fetch(`${WEATHER_URL}?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`),
         fetchWaterInfo(lat, lon),
         fetchHourlyForecast(lat, lon),
         fetchDailyForecast(lat, lon),
+        fetchUVData(lat, lon),
       ]);
       if (!weatherRes.ok) throw new Error(`Weather API error ${weatherRes.status}`);
       setWeather(await weatherRes.json());
       setWaterInfo(water ?? null);
       setForecast(hours);
       setDaily(days);
+      setUvData(uv);
       setLastUpdated(new Date());
     } catch (err) {
       setError(err.message);
@@ -822,6 +863,75 @@ Be concise — this is a mobile chat panel.`
                 </span>
               </div>
             </div>
+
+            {uvData && isDay && (() => {
+              const now        = new Date();
+              const todayStr   = now.toDateString();
+              const todaySlots = uvData.filter(s => s.time.toDateString() === todayStr);
+              const curUV      = uvData.find(s => s.time.getHours() === now.getHours())?.uv ?? 0;
+              const peak       = todaySlots.reduce((b, s) => s.uv > b.uv ? s : b, { uv: 0, time: now });
+              const info       = uvInfo(curUV);
+              const dotPct     = Math.min(curUV / 11 * 100, 100);
+              const tanHours   = todaySlots
+                .filter(s => s.uv >= 2 && s.time >= now)
+                .slice(0, 6);
+              const avoidSlots = todaySlots.filter(s => s.uv >= 8);
+              const avoidStr   = avoidSlots.length
+                ? `${avoidSlots[0].time.getHours()}–${avoidSlots[avoidSlots.length - 1].time.getHours() + 1}h`
+                : "—";
+              return (
+                <div className="uv-card">
+                  <div className="uv-top">
+                    <div>
+                      <span className="uv-card-label">UV Index · now</span>
+                      <div className="uv-number-row">
+                        <span className="uv-number">{Math.round(curUV)}</span>
+                        <span className="uv-level-badge" style={{ color: info.color }}>{info.label}</span>
+                      </div>
+                      <span className="uv-tan-desc">{uvTanDesc(curUV)}</span>
+                    </div>
+                    <div className="uv-peak-box">
+                      <span style={{ fontSize: "20px" }}>☀️</span>
+                      <span className="uv-peak-time">Peak {formatTime(peak.time)}</span>
+                    </div>
+                  </div>
+
+                  <div className="uv-scale-bar">
+                    <div className="uv-scale-dot" style={{ left: `${dotPct}%`, borderColor: info.color }} />
+                  </div>
+                  <div className="uv-scale-labels">
+                    <span>0</span><span>3 Mod</span><span>6 Hi</span><span>8 V.Hi</span><span>11+</span>
+                  </div>
+
+                  {tanHours.length > 0 && (
+                    <>
+                      <div className="uv-hours-label">Best tanning hours today</div>
+                      <div className="uv-hours">
+                        {tanHours.map((s, i) => {
+                          const burn = s.uv >= 6;
+                          return (
+                            <div key={i} className={`uv-hour ${burn ? "warn" : "good"}`}>
+                              <span className="uv-hour-time">{s.time.getHours()}:00</span>
+                              <span className="uv-hour-val">UV {Math.round(s.uv)}{burn ? "⚠️" : ""}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="uv-spf-box">
+                    <div className="uv-spf-title">🧴 Protection advice</div>
+                    <div className="uv-spf-grid">
+                      <div className="uv-spf-item">SPF: <strong>{info.spf}</strong></div>
+                      <div className="uv-spf-item">Max: <strong>{info.maxMin}</strong></div>
+                      <div className="uv-spf-item">Reapply: <strong>{info.reapply}</strong></div>
+                      <div className="uv-spf-item">Avoid: <strong>{avoidStr}</strong></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
 

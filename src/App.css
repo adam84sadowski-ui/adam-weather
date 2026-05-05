@@ -918,3 +918,165 @@
   font-size: 11px;
   color: rgba(255,255,255,0.35);
 }
+
+/* UV card */
+.uv-card {
+  background: rgba(255, 180, 0, 0.08);
+  border: 0.5px solid rgba(255, 210, 60, 0.3);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.uv-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.uv-card-label {
+  font-size: 9px;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.uv-number-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.uv-number {
+  font-size: 28px;
+  font-weight: 200;
+  color: white;
+  line-height: 1;
+}
+
+.uv-level-badge {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.uv-tan-desc {
+  font-size: 10px;
+  color: rgba(255, 220, 80, 0.85);
+  display: block;
+  margin-top: 3px;
+}
+
+.uv-peak-box {
+  text-align: right;
+}
+
+.uv-peak-time {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  display: block;
+  margin-top: 2px;
+}
+
+.uv-scale-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #4ade80, #facc15, #f97316, #ef4444, #7c3aed);
+  position: relative;
+  margin-bottom: 5px;
+}
+
+.uv-scale-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  border: 2.5px solid #f97316;
+  box-shadow: 0 0 6px rgba(249,115,22,0.5);
+}
+
+.uv-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.uv-scale-labels span {
+  font-size: 8px;
+  color: rgba(255,255,255,0.3);
+}
+
+.uv-hours-label {
+  font-size: 9px;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 5px;
+}
+
+.uv-hours {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.uv-hour {
+  flex: 1;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 2px;
+}
+
+.uv-hour.good {
+  background: rgba(250, 204, 21, 0.15);
+}
+
+.uv-hour.warn {
+  background: rgba(249, 115, 22, 0.2);
+  border: 0.5px solid rgba(249, 115, 22, 0.4);
+}
+
+.uv-hour-time {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  display: block;
+}
+
+.uv-hour-val {
+  font-size: 8px;
+  color: rgba(255,255,255,0.5);
+  display: block;
+  margin-top: 1px;
+}
+
+.uv-spf-box {
+  background: rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.uv-spf-title {
+  font-size: 9px;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 6px;
+}
+
+.uv-spf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.uv-spf-item {
+  font-size: 10px;
+  color: rgba(255,255,255,0.55);
+}
+
+.uv-spf-item strong {
+  color: white;
+  font-weight: 600;
+}
