@@ -4,7 +4,6 @@ import SunCalc from "suncalc";
 
 const API_KEY          = import.meta.env.VITE_OWM_API_KEY;
 const WEATHER_URL      = "https://api.openweathermap.org/data/2.5/weather";
-const FORECAST_URL     = "https://api.openweathermap.org/data/2.5/forecast";
 const GEO_URL          = "https://api.openweathermap.org/geo/1.0/direct";
 const REVERSE_GEO_URL  = "https://api.openweathermap.org/geo/1.0/reverse";
 const MARINE_URL       = "https://marine-api.open-meteo.com/v1/marine";
@@ -266,24 +265,31 @@ async function fetchDailyForecast(lat, lon) {
   } catch { return null; }
 }
 
-// OWM /data/2.5/forecast gives 3-hourly slots, up to 40 entries (5 days)
+// Open-Meteo hourly forecast — 72h window, 1h resolution
 async function fetchHourlyForecast(lat, lon) {
   try {
-    const res = await fetch(
-      `${FORECAST_URL}?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&cnt=24`
-    );
+    const params = new URLSearchParams({
+      latitude: lat, longitude: lon,
+      hourly: "weathercode,temperature_2m,precipitation_probability,windspeed_10m,winddirection_10m",
+      forecast_days: 4,
+      timezone: "auto",
+    });
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
     if (!res.ok) return null;
     const d = await res.json();
-    if (!d.list?.length) return null;
-    return d.list.map(item => ({
-      time:      new Date(item.dt * 1000),
-      temp:      Math.round(item.main.temp),
-      desc:      item.weather[0].description,
-      emoji:     owmEmoji(item.weather[0].id, item.weather[0].icon),
-      precip:    Math.round((item.pop ?? 0) * 100),
-      windSpeed: Math.round((item.wind?.speed ?? 0) * 3.6),
-      windDeg:   item.wind?.deg ?? 0,
-    }));
+    if (!d.hourly?.time?.length) return null;
+    const now = new Date();
+    return d.hourly.time
+      .map((t, i) => ({
+        time:      new Date(t),
+        temp:      Math.round(d.hourly.temperature_2m[i]),
+        emoji:     WMO_EMOJI[d.hourly.weathercode[i]] ?? "🌡️",
+        precip:    d.hourly.precipitation_probability[i] ?? 0,
+        windSpeed: Math.round(d.hourly.windspeed_10m[i]),
+        windDeg:   d.hourly.winddirection_10m[i] ?? 0,
+      }))
+      .filter(s => s.time >= now)
+      .slice(0, 73);
   } catch { return null; }
 }
 
@@ -536,6 +542,7 @@ export default function App() {
     setError(null);
     setWaterInfo(undefined);
     setClimateData(null);
+    setUvData(null);
     const { lat, lon } = city;
     try {
       const [weatherRes, water, hours, days, uv] = await Promise.all([
@@ -938,24 +945,41 @@ Be concise — this is a mobile chat panel.`
         {/* Tab: 72h */}
         {tab === "72h" && (
           <div className="forecast-section">
-            {forecast && forecast.length > 0 ? (
-              <div className="forecast-grid">
-                {forecast.map((h, i) => (
-                  <div key={i} className={`forecast-row ${i === 0 ? "now" : ""}`}>
-                    <span className="forecast-hour">
-                      {i === 0 ? "Now" : h.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    <span className="forecast-day">
-                      {h.time.toLocaleDateString("en-GB", { weekday: "short" })}
-                    </span>
-                    <span className="forecast-emoji">{h.emoji}</span>
-                    <span className="forecast-temp">{h.temp}°C</span>
-                    <span className="forecast-wind">{h.windSpeed} <WindDirection deg={h.windDeg} /></span>
-                    <span className="forecast-precip">{h.precip > 0 ? `💧${h.precip}%` : ""}</span>
+            {forecast && forecast.length > 0 ? (() => {
+              const cutoff = new Date(Date.now() + 24 * 60 * 60 * 1000);
+              const next24  = forecast.filter(h => h.time < cutoff);
+              const later   = forecast.filter(h => h.time >= cutoff).filter((_, i) => i % 3 === 0);
+              const renderRow = (h, i, label) => (
+                <div key={label + i} className={`forecast-row ${i === 0 && label === "24" ? "now" : ""}`}>
+                  <span className="forecast-hour">
+                    {i === 0 && label === "24" ? "Now" : h.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <span className="forecast-day">
+                    {h.time.toLocaleDateString("en-GB", { weekday: "short" })}
+                  </span>
+                  <span className="forecast-emoji">{h.emoji}</span>
+                  <span className="forecast-temp">{h.temp}°C</span>
+                  <span className="forecast-wind">{h.windSpeed} <WindDirection deg={h.windDeg} /></span>
+                  <span className="forecast-precip">{h.precip > 0 ? `💧${h.precip}%` : ""}</span>
+                </div>
+              );
+              return (
+                <>
+                  <div className="forecast-section-label">Next 24h</div>
+                  <div className="forecast-grid">
+                    {next24.map((h, i) => renderRow(h, i, "24"))}
                   </div>
-                ))}
-              </div>
-            ) : (
+                  {later.length > 0 && (
+                    <>
+                      <div className="forecast-section-label" style={{ marginTop: "10px" }}>Later</div>
+                      <div className="forecast-grid">
+                        {later.map((h, i) => renderRow(h, i, "later"))}
+                      </div>
+                    </>
+                  )}
+                </>
+              );
+            })() : (
               <p className="no-data">Forecast unavailable</p>
             )}
           </div>

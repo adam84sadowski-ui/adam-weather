@@ -252,6 +252,14 @@
   margin-bottom: 8px;
 }
 
+.forecast-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 4px;
+}
+
 .forecast-grid {
   display: flex;
   flex-direction: column;
