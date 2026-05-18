@@ -324,8 +324,9 @@ async function fetchUVData(lat, lon) {
     if (!res.ok) return null;
     const d = await res.json();
     if (!d.hourly?.time?.length) return null;
+    const offset = d.utc_offset_seconds ?? 0;
     return d.hourly.time.map((t, i) => ({
-      time: new Date(t),
+      time: new Date(new Date(t + "Z").getTime() - offset * 1000),
       uv:   d.hourly.uv_index[i] ?? 0,
     }));
   } catch { return null; }
@@ -894,9 +895,11 @@ Be concise — this is a mobile chat panel.`
 
             {uvData && isDay && (() => {
               const now        = new Date();
-              const todayStr   = now.toDateString();
-              const todaySlots = uvData.filter(s => s.time.toDateString() === todayStr);
-              const curUV      = uvData.find(s => s.time.getHours() === now.getHours())?.uv ?? 0;
+              const tz         = forecastTz;
+              const todayStr   = now.toLocaleDateString("en-CA", { timeZone: tz });
+              const todaySlots = uvData.filter(s => s.time.toLocaleDateString("en-CA", { timeZone: tz }) === todayStr);
+              const nowHour    = parseInt(now.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: tz }), 10);
+              const curUV      = uvData.find(s => parseInt(s.time.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: tz }), 10) === nowHour)?.uv ?? 0;
               const peak       = todaySlots.reduce((b, s) => s.uv > b.uv ? s : b, { uv: 0, time: now });
               const info       = uvInfo(curUV);
               const dotPct     = Math.min(curUV / 11 * 100, 100);
@@ -905,7 +908,7 @@ Be concise — this is a mobile chat panel.`
                 .slice(0, 6);
               const avoidSlots = todaySlots.filter(s => s.uv >= 8);
               const avoidStr   = avoidSlots.length
-                ? `${avoidSlots[0].time.getHours()}–${avoidSlots[avoidSlots.length - 1].time.getHours() + 1}h`
+                ? `${parseInt(avoidSlots[0].time.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: tz }), 10)}–${parseInt(avoidSlots[avoidSlots.length - 1].time.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: tz }), 10) + 1}h`
                 : "—";
               return (
                 <div className="uv-card">
@@ -939,7 +942,7 @@ Be concise — this is a mobile chat panel.`
                           const burn = s.uv >= 6;
                           return (
                             <div key={i} className={`uv-hour ${burn ? "warn" : "good"}`}>
-                              <span className="uv-hour-time">{s.time.getHours()}:00</span>
+                              <span className="uv-hour-time">{s.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz })}</span>
                               <span className="uv-hour-val">UV {Math.round(s.uv)}{burn ? "⚠️" : ""}</span>
                             </div>
                           );
