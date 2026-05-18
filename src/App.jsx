@@ -272,16 +272,17 @@ async function fetchHourlyForecast(lat, lon) {
       latitude: lat, longitude: lon,
       hourly: "weathercode,temperature_2m,precipitation_probability,windspeed_10m,winddirection_10m",
       forecast_days: 4,
-      timezone: "auto",
+      timezone: "UTC",
     });
     const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
     if (!res.ok) return null;
     const d = await res.json();
     if (!d.hourly?.time?.length) return null;
+    const tz  = d.timezone ?? "UTC";
     const now = new Date();
-    return d.hourly.time
+    const slots = d.hourly.time
       .map((t, i) => ({
-        time:      new Date(t),
+        time:      new Date(t + "Z"),   // force UTC parse
         temp:      Math.round(d.hourly.temperature_2m[i]),
         emoji:     WMO_EMOJI[d.hourly.weathercode[i]] ?? "🌡️",
         precip:    d.hourly.precipitation_probability[i] ?? 0,
@@ -290,6 +291,7 @@ async function fetchHourlyForecast(lat, lon) {
       }))
       .filter(s => s.time >= now)
       .slice(0, 73);
+    return { slots, tz };
   } catch { return null; }
 }
 
@@ -437,6 +439,7 @@ export default function App() {
   const [climateLoading, setClimateLoading]     = useState(false);
   const [selectedMonth, setSelectedMonth]       = useState(new Date().getMonth());
   const [uvData, setUvData]                     = useState(null);
+  const [forecastTz, setForecastTz]             = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   const moonData = useMemo(() => computeMoonPhase(city.lat, city.lon), [city.lat, city.lon]);
 
@@ -555,7 +558,8 @@ export default function App() {
       if (!weatherRes.ok) throw new Error(`Weather API error ${weatherRes.status}`);
       setWeather(await weatherRes.json());
       setWaterInfo(water ?? null);
-      setForecast(hours);
+      setForecast(hours?.slots ?? null);
+      setForecastTz(hours?.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
       setDaily(days);
       setUvData(uv);
       setLastUpdated(new Date());
@@ -952,10 +956,10 @@ Be concise — this is a mobile chat panel.`
               const renderRow = (h, i, label) => (
                 <div key={label + i} className={`forecast-row ${i === 0 && label === "24" ? "now" : ""}`}>
                   <span className="forecast-hour">
-                    {i === 0 && label === "24" ? "Now" : h.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    {i === 0 && label === "24" ? "Now" : h.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: forecastTz })}
                   </span>
                   <span className="forecast-day">
-                    {h.time.toLocaleDateString("en-GB", { weekday: "short" })}
+                    {h.time.toLocaleDateString("en-GB", { weekday: "short", timeZone: forecastTz })}
                   </span>
                   <span className="forecast-emoji">{h.emoji}</span>
                   <span className="forecast-temp">{h.temp}°C</span>
