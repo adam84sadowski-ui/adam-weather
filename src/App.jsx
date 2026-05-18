@@ -239,6 +239,15 @@ const WMO_DESC = {
   95: "thunderstorm", 96: "thunderstorm w/ hail", 99: "thunderstorm w/ heavy hail",
 };
 
+function wmoEmoji(code, isDay) {
+  if (!isDay) {
+    if (code === 0) return "🌙";
+    if (code === 1) return "🌙";
+    if (code === 2) return "⛅";
+  }
+  return WMO_EMOJI[code] ?? "🌡️";
+}
+
 async function fetchDailyForecast(lat, lon) {
   try {
     const params = new URLSearchParams({
@@ -278,18 +287,26 @@ async function fetchHourlyForecast(lat, lon) {
     if (!res.ok) return null;
     const d = await res.json();
     if (!d.hourly?.time?.length) return null;
-    const now = new Date();
-    return d.hourly.time
-      .map((t, i) => ({
-        time:      new Date(t),
-        temp:      Math.round(d.hourly.temperature_2m[i]),
-        emoji:     WMO_EMOJI[d.hourly.weathercode[i]] ?? "🌡️",
-        precip:    d.hourly.precipitation_probability[i] ?? 0,
-        windSpeed: Math.round(d.hourly.windspeed_10m[i]),
-        windDeg:   d.hourly.winddirection_10m[i] ?? 0,
-      }))
+    const tz       = d.timezone ?? "UTC";
+    const offset   = d.utc_offset_seconds ?? 0;  // e.g. -18000 for CDT
+    const now      = new Date();
+    const slots = d.hourly.time
+      .map((t, i) => {
+        // Open-Meteo returns local time strings without offset (e.g. "2026-05-19T07:00").
+        // Treat them as UTC first, then subtract the city's UTC offset to get real UTC.
+        const utcTime = new Date(new Date(t + "Z").getTime() - offset * 1000);
+        return {
+          time:      utcTime,
+          temp:      Math.round(d.hourly.temperature_2m[i]),
+          wmoCode:   d.hourly.weathercode[i],
+          precip:    d.hourly.precipitation_probability[i] ?? 0,
+          windSpeed: Math.round(d.hourly.windspeed_10m[i]),
+          windDeg:   d.hourly.winddirection_10m[i] ?? 0,
+        };
+      })
       .filter(s => s.time >= now)
       .slice(0, 73);
+    return { slots, tz };
   } catch { return null; }
 }
 
@@ -307,8 +324,9 @@ async function fetchUVData(lat, lon) {
     if (!res.ok) return null;
     const d = await res.json();
     if (!d.hourly?.time?.length) return null;
+    const offset = d.utc_offset_seconds ?? 0;
     return d.hourly.time.map((t, i) => ({
-      time: new Date(t),
+      time: new Date(new Date(t + "Z").getTime() - offset * 1000),
       uv:   d.hourly.uv_index[i] ?? 0,
     }));
   } catch { return null; }
@@ -352,8 +370,10 @@ function iconUrl(code) {
   return `https://openweathermap.org/img/wn/${code}@2x.png`;
 }
 
-function formatTime(date) {
-  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+function formatTime(date, tz) {
+  const opts = { hour: "2-digit", minute: "2-digit" };
+  if (tz) opts.timeZone = tz;
+  return date.toLocaleTimeString("en-GB", opts);
 }
 
 function WindDirection({ deg }) {
@@ -389,10 +409,10 @@ function computeMoonPhase(lat, lon) {
   else if (moonAge < 23.99) phaseName = "Last Quarter";
   else                      phaseName = "Waning Crescent";
 
-  const moonTimes = SunCalc.getMoonTimes(now, lat, lon);
-  const moonrise  = moonTimes.rise ? formatTime(moonTimes.rise) : null;
+  const moonTimes    = SunCalc.getMoonTimes(now, lat, lon);
+  const moonriseDate = moonTimes.rise ?? null;
 
-  return { moonAge, illumination, daysToFull, phaseName, moonrise };
+  return { moonAge, illumination, daysToFull, phaseName, moonriseDate };
 }
 
 function MoonIcon({ moonAge }) {
@@ -437,6 +457,7 @@ export default function App() {
   const [climateLoading, setClimateLoading]     = useState(false);
   const [selectedMonth, setSelectedMonth]       = useState(new Date().getMonth());
   const [uvData, setUvData]                     = useState(null);
+  const [forecastTz, setForecastTz]             = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   const moonData = useMemo(() => computeMoonPhase(city.lat, city.lon), [city.lat, city.lon]);
 
@@ -555,7 +576,8 @@ export default function App() {
       if (!weatherRes.ok) throw new Error(`Weather API error ${weatherRes.status}`);
       setWeather(await weatherRes.json());
       setWaterInfo(water ?? null);
-      setForecast(hours);
+      setForecast(hours?.slots ?? null);
+      setForecastTz(hours?.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
       setDaily(days);
       setUvData(uv);
       setLastUpdated(new Date());
@@ -814,7 +836,7 @@ Be concise — this is a mobile chat panel.`
               <div className="stat">
                 <span className="stat-label">Sunrise / Set</span>
                 <span className="stat-value">
-                  {formatTime(new Date(sys.sunrise * 1000))} / {formatTime(new Date(sys.sunset * 1000))}
+                  {formatTime(new Date(sys.sunrise * 1000), forecastTz)} / {formatTime(new Date(sys.sunset * 1000), forecastTz)}
                 </span>
               </div>
               {(weather.rain?.["1h"] > 0) && (
@@ -856,7 +878,7 @@ Be concise — this is a mobile chat panel.`
                 <span className="moon-phase-name">{moonData.phaseName}</span>
                 <div className="moon-details">
                   <span>{Math.round(moonData.illumination)}% illuminated</span>
-                  {moonData.moonrise && <span>↑ {moonData.moonrise}</span>}
+                  {moonData.moonriseDate && <span>↑ {formatTime(moonData.moonriseDate, forecastTz)}</span>}
                 </div>
                 <div className="moon-progress-track">
                   <div className="moon-progress-fill" style={{ width: `${(moonData.moonAge / SYNODIC) * 100}%` }} />
@@ -873,9 +895,11 @@ Be concise — this is a mobile chat panel.`
 
             {uvData && isDay && (() => {
               const now        = new Date();
-              const todayStr   = now.toDateString();
-              const todaySlots = uvData.filter(s => s.time.toDateString() === todayStr);
-              const curUV      = uvData.find(s => s.time.getHours() === now.getHours())?.uv ?? 0;
+              const tz         = forecastTz;
+              const todayStr   = now.toLocaleDateString("en-CA", { timeZone: tz });
+              const todaySlots = uvData.filter(s => s.time.toLocaleDateString("en-CA", { timeZone: tz }) === todayStr);
+              const nowHour    = parseInt(now.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: tz }), 10);
+              const curUV      = uvData.find(s => parseInt(s.time.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: tz }), 10) === nowHour)?.uv ?? 0;
               const peak       = todaySlots.reduce((b, s) => s.uv > b.uv ? s : b, { uv: 0, time: now });
               const info       = uvInfo(curUV);
               const dotPct     = Math.min(curUV / 11 * 100, 100);
@@ -884,7 +908,7 @@ Be concise — this is a mobile chat panel.`
                 .slice(0, 6);
               const avoidSlots = todaySlots.filter(s => s.uv >= 8);
               const avoidStr   = avoidSlots.length
-                ? `${avoidSlots[0].time.getHours()}–${avoidSlots[avoidSlots.length - 1].time.getHours() + 1}h`
+                ? `${parseInt(avoidSlots[0].time.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: tz }), 10)}–${parseInt(avoidSlots[avoidSlots.length - 1].time.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: tz }), 10) + 1}h`
                 : "—";
               return (
                 <div className="uv-card">
@@ -899,7 +923,7 @@ Be concise — this is a mobile chat panel.`
                     </div>
                     <div className="uv-peak-box">
                       <span style={{ fontSize: "20px" }}>☀️</span>
-                      <span className="uv-peak-time">Peak {formatTime(peak.time)}</span>
+                      <span className="uv-peak-time">Peak {formatTime(peak.time, forecastTz)}</span>
                     </div>
                   </div>
 
@@ -918,7 +942,7 @@ Be concise — this is a mobile chat panel.`
                           const burn = s.uv >= 6;
                           return (
                             <div key={i} className={`uv-hour ${burn ? "warn" : "good"}`}>
-                              <span className="uv-hour-time">{s.time.getHours()}:00</span>
+                              <span className="uv-hour-time">{s.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz })}</span>
                               <span className="uv-hour-val">UV {Math.round(s.uv)}{burn ? "⚠️" : ""}</span>
                             </div>
                           );
@@ -949,15 +973,24 @@ Be concise — this is a mobile chat panel.`
               const cutoff = new Date(Date.now() + 24 * 60 * 60 * 1000);
               const next24  = forecast.filter(h => h.time < cutoff);
               const later   = forecast.filter(h => h.time >= cutoff).filter((_, i) => i % 3 === 0);
+              const sunCache = {};
+              const slotEmoji = (h) => {
+                const key = h.time.toISOString().slice(0, 10);
+                if (!sunCache[key]) sunCache[key] = SunCalc.getTimes(h.time, city.lat, city.lon);
+                const sun = sunCache[key];
+                const isDay = sun.sunrise && sun.sunset
+                  ? h.time >= sun.sunrise && h.time < sun.sunset : true;
+                return wmoEmoji(h.wmoCode, isDay);
+              };
               const renderRow = (h, i, label) => (
                 <div key={label + i} className={`forecast-row ${i === 0 && label === "24" ? "now" : ""}`}>
                   <span className="forecast-hour">
-                    {i === 0 && label === "24" ? "Now" : h.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    {i === 0 && label === "24" ? "Now" : h.time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: forecastTz })}
                   </span>
                   <span className="forecast-day">
-                    {h.time.toLocaleDateString("en-GB", { weekday: "short" })}
+                    {h.time.toLocaleDateString("en-GB", { weekday: "short", timeZone: forecastTz })}
                   </span>
-                  <span className="forecast-emoji">{h.emoji}</span>
+                  <span className="forecast-emoji">{slotEmoji(h)}</span>
                   <span className="forecast-temp">{h.temp}°C</span>
                   <span className="forecast-wind">{h.windSpeed} <WindDirection deg={h.windDeg} /></span>
                   <span className="forecast-precip">{h.precip > 0 ? `💧${h.precip}%` : ""}</span>
@@ -993,10 +1026,10 @@ Be concise — this is a mobile chat panel.`
                 {daily.map((d, i) => (
                   <div key={i} className={`forecast-row daily-row ${i === 0 ? "now" : ""}`}>
                     <span className="forecast-day-label">
-                      {i === 0 ? "Today" : d.date.toLocaleDateString("en-GB", { weekday: "short" })}
+                      {i === 0 ? "Today" : d.date.toLocaleDateString("en-GB", { weekday: "short", timeZone: forecastTz })}
                     </span>
                     <span className="forecast-date">
-                      {d.date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      {d.date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: forecastTz })}
                     </span>
                     <span className="forecast-emoji">{d.emoji}</span>
                     <span className="forecast-range">
