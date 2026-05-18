@@ -281,23 +281,29 @@ async function fetchHourlyForecast(lat, lon) {
       latitude: lat, longitude: lon,
       hourly: "weathercode,temperature_2m,precipitation_probability,windspeed_10m,winddirection_10m",
       forecast_days: 4,
-      timezone: "UTC",
+      timezone: "auto",
     });
     const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
     if (!res.ok) return null;
     const d = await res.json();
     if (!d.hourly?.time?.length) return null;
-    const tz  = d.timezone ?? "UTC";
-    const now = new Date();
+    const tz       = d.timezone ?? "UTC";
+    const offset   = d.utc_offset_seconds ?? 0;  // e.g. -18000 for CDT
+    const now      = new Date();
     const slots = d.hourly.time
-      .map((t, i) => ({
-        time:      new Date(t + "Z"),   // force UTC parse
-        temp:      Math.round(d.hourly.temperature_2m[i]),
-        wmoCode:   d.hourly.weathercode[i],
-        precip:    d.hourly.precipitation_probability[i] ?? 0,
-        windSpeed: Math.round(d.hourly.windspeed_10m[i]),
-        windDeg:   d.hourly.winddirection_10m[i] ?? 0,
-      }))
+      .map((t, i) => {
+        // Open-Meteo returns local time strings without offset (e.g. "2026-05-19T07:00").
+        // Treat them as UTC first, then subtract the city's UTC offset to get real UTC.
+        const utcTime = new Date(new Date(t + "Z").getTime() - offset * 1000);
+        return {
+          time:      utcTime,
+          temp:      Math.round(d.hourly.temperature_2m[i]),
+          wmoCode:   d.hourly.weathercode[i],
+          precip:    d.hourly.precipitation_probability[i] ?? 0,
+          windSpeed: Math.round(d.hourly.windspeed_10m[i]),
+          windDeg:   d.hourly.winddirection_10m[i] ?? 0,
+        };
+      })
       .filter(s => s.time >= now)
       .slice(0, 73);
     return { slots, tz };
