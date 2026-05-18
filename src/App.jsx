@@ -293,12 +293,7 @@ async function fetchHourlyForecast(lat, lon) {
       .map((t, i) => ({
         time:      new Date(t + "Z"),   // force UTC parse
         temp:      Math.round(d.hourly.temperature_2m[i]),
-        emoji:     (() => {
-          const t  = new Date(d.hourly.time[i] + "Z");
-          const sun = SunCalc.getSunTimes(t, lat, lon);
-          const day = sun.sunrise && sun.sunset ? t >= sun.sunrise && t < sun.sunset : true;
-          return wmoEmoji(d.hourly.weathercode[i], day);
-        })(),
+        wmoCode:   d.hourly.weathercode[i],
         precip:    d.hourly.precipitation_probability[i] ?? 0,
         windSpeed: Math.round(d.hourly.windspeed_10m[i]),
         windDeg:   d.hourly.winddirection_10m[i] ?? 0,
@@ -969,6 +964,15 @@ Be concise — this is a mobile chat panel.`
               const cutoff = new Date(Date.now() + 24 * 60 * 60 * 1000);
               const next24  = forecast.filter(h => h.time < cutoff);
               const later   = forecast.filter(h => h.time >= cutoff).filter((_, i) => i % 3 === 0);
+              const sunCache = {};
+              const slotEmoji = (h) => {
+                const key = h.time.toISOString().slice(0, 10);
+                if (!sunCache[key]) sunCache[key] = SunCalc.getSunTimes(h.time, city.lat, city.lon);
+                const sun = sunCache[key];
+                const isDay = sun.sunrise && sun.sunset
+                  ? h.time >= sun.sunrise && h.time < sun.sunset : true;
+                return wmoEmoji(h.wmoCode, isDay);
+              };
               const renderRow = (h, i, label) => (
                 <div key={label + i} className={`forecast-row ${i === 0 && label === "24" ? "now" : ""}`}>
                   <span className="forecast-hour">
@@ -977,7 +981,7 @@ Be concise — this is a mobile chat panel.`
                   <span className="forecast-day">
                     {h.time.toLocaleDateString("en-GB", { weekday: "short", timeZone: forecastTz })}
                   </span>
-                  <span className="forecast-emoji">{h.emoji}</span>
+                  <span className="forecast-emoji">{slotEmoji(h)}</span>
                   <span className="forecast-temp">{h.temp}°C</span>
                   <span className="forecast-wind">{h.windSpeed} <WindDirection deg={h.windDeg} /></span>
                   <span className="forecast-precip">{h.precip > 0 ? `💧${h.precip}%` : ""}</span>
