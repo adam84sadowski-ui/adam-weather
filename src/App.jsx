@@ -279,7 +279,7 @@ async function fetchHourlyForecast(lat, lon) {
   try {
     const params = new URLSearchParams({
       latitude: lat, longitude: lon,
-      hourly: "weathercode,temperature_2m,precipitation_probability,windspeed_10m,winddirection_10m,is_day",
+      hourly: "weathercode,temperature_2m,precipitation_probability,windspeed_10m,winddirection_10m",
       forecast_days: 4,
       timezone: "UTC",
     });
@@ -293,7 +293,12 @@ async function fetchHourlyForecast(lat, lon) {
       .map((t, i) => ({
         time:      new Date(t + "Z"),   // force UTC parse
         temp:      Math.round(d.hourly.temperature_2m[i]),
-        emoji:     wmoEmoji(d.hourly.weathercode[i], d.hourly.is_day[i]),
+        emoji:     (() => {
+          const t  = new Date(d.hourly.time[i] + "Z");
+          const sun = SunCalc.getSunTimes(t, lat, lon);
+          const day = sun.sunrise && sun.sunset ? t >= sun.sunrise && t < sun.sunset : true;
+          return wmoEmoji(d.hourly.weathercode[i], day);
+        })(),
         precip:    d.hourly.precipitation_probability[i] ?? 0,
         windSpeed: Math.round(d.hourly.windspeed_10m[i]),
         windDeg:   d.hourly.winddirection_10m[i] ?? 0,
