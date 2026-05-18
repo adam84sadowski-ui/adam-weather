@@ -239,6 +239,15 @@ const WMO_DESC = {
   95: "thunderstorm", 96: "thunderstorm w/ hail", 99: "thunderstorm w/ heavy hail",
 };
 
+function wmoEmoji(code, isDay) {
+  if (!isDay) {
+    if (code === 0) return "🌙";
+    if (code === 1) return "🌙";
+    if (code === 2) return "⛅";
+  }
+  return WMO_EMOJI[code] ?? "🌡️";
+}
+
 async function fetchDailyForecast(lat, lon) {
   try {
     const params = new URLSearchParams({
@@ -270,7 +279,7 @@ async function fetchHourlyForecast(lat, lon) {
   try {
     const params = new URLSearchParams({
       latitude: lat, longitude: lon,
-      hourly: "weathercode,temperature_2m,precipitation_probability,windspeed_10m,winddirection_10m",
+      hourly: "weathercode,temperature_2m,precipitation_probability,windspeed_10m,winddirection_10m,is_day",
       forecast_days: 4,
       timezone: "UTC",
     });
@@ -284,7 +293,7 @@ async function fetchHourlyForecast(lat, lon) {
       .map((t, i) => ({
         time:      new Date(t + "Z"),   // force UTC parse
         temp:      Math.round(d.hourly.temperature_2m[i]),
-        emoji:     WMO_EMOJI[d.hourly.weathercode[i]] ?? "🌡️",
+        emoji:     wmoEmoji(d.hourly.weathercode[i], d.hourly.is_day[i]),
         precip:    d.hourly.precipitation_probability[i] ?? 0,
         windSpeed: Math.round(d.hourly.windspeed_10m[i]),
         windDeg:   d.hourly.winddirection_10m[i] ?? 0,
