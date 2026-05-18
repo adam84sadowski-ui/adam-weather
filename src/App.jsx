@@ -368,8 +368,10 @@ function iconUrl(code) {
   return `https://openweathermap.org/img/wn/${code}@2x.png`;
 }
 
-function formatTime(date) {
-  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+function formatTime(date, tz) {
+  const opts = { hour: "2-digit", minute: "2-digit" };
+  if (tz) opts.timeZone = tz;
+  return date.toLocaleTimeString("en-GB", opts);
 }
 
 function WindDirection({ deg }) {
@@ -405,10 +407,10 @@ function computeMoonPhase(lat, lon) {
   else if (moonAge < 23.99) phaseName = "Last Quarter";
   else                      phaseName = "Waning Crescent";
 
-  const moonTimes = SunCalc.getMoonTimes(now, lat, lon);
-  const moonrise  = moonTimes.rise ? formatTime(moonTimes.rise) : null;
+  const moonTimes    = SunCalc.getMoonTimes(now, lat, lon);
+  const moonriseDate = moonTimes.rise ?? null;
 
-  return { moonAge, illumination, daysToFull, phaseName, moonrise };
+  return { moonAge, illumination, daysToFull, phaseName, moonriseDate };
 }
 
 function MoonIcon({ moonAge }) {
@@ -832,7 +834,7 @@ Be concise — this is a mobile chat panel.`
               <div className="stat">
                 <span className="stat-label">Sunrise / Set</span>
                 <span className="stat-value">
-                  {formatTime(new Date(sys.sunrise * 1000))} / {formatTime(new Date(sys.sunset * 1000))}
+                  {formatTime(new Date(sys.sunrise * 1000), forecastTz)} / {formatTime(new Date(sys.sunset * 1000), forecastTz)}
                 </span>
               </div>
               {(weather.rain?.["1h"] > 0) && (
@@ -874,7 +876,7 @@ Be concise — this is a mobile chat panel.`
                 <span className="moon-phase-name">{moonData.phaseName}</span>
                 <div className="moon-details">
                   <span>{Math.round(moonData.illumination)}% illuminated</span>
-                  {moonData.moonrise && <span>↑ {moonData.moonrise}</span>}
+                  {moonData.moonriseDate && <span>↑ {formatTime(moonData.moonriseDate, forecastTz)}</span>}
                 </div>
                 <div className="moon-progress-track">
                   <div className="moon-progress-fill" style={{ width: `${(moonData.moonAge / SYNODIC) * 100}%` }} />
@@ -917,7 +919,7 @@ Be concise — this is a mobile chat panel.`
                     </div>
                     <div className="uv-peak-box">
                       <span style={{ fontSize: "20px" }}>☀️</span>
-                      <span className="uv-peak-time">Peak {formatTime(peak.time)}</span>
+                      <span className="uv-peak-time">Peak {formatTime(peak.time, forecastTz)}</span>
                     </div>
                   </div>
 
@@ -1011,10 +1013,10 @@ Be concise — this is a mobile chat panel.`
                 {daily.map((d, i) => (
                   <div key={i} className={`forecast-row daily-row ${i === 0 ? "now" : ""}`}>
                     <span className="forecast-day-label">
-                      {i === 0 ? "Today" : d.date.toLocaleDateString("en-GB", { weekday: "short" })}
+                      {i === 0 ? "Today" : d.date.toLocaleDateString("en-GB", { weekday: "short", timeZone: forecastTz })}
                     </span>
                     <span className="forecast-date">
-                      {d.date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      {d.date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: forecastTz })}
                     </span>
                     <span className="forecast-emoji">{d.emoji}</span>
                     <span className="forecast-range">
