@@ -973,7 +973,7 @@ Be concise — this is a mobile chat panel.`
               const sunCache = {};
               const slotEmoji = (h) => {
                 const key = h.time.toISOString().slice(0, 10);
-                if (!sunCache[key]) sunCache[key] = SunCalc.getSunTimes(h.time, city.lat, city.lon);
+                if (!sunCache[key]) sunCache[key] = SunCalc.getTimes(h.time, city.lat, city.lon);
                 const sun = sunCache[key];
                 const isDay = sun.sunrise && sun.sunset
                   ? h.time >= sun.sunrise && h.time < sun.sunset : true;
